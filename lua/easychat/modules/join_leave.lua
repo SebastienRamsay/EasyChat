@@ -62,7 +62,7 @@ if SERVER then
 		net.WriteString(data.name)
 		net.WriteString(data.reason)
 		net.WriteString(data.networkid)
-		net.Broadcast()
+		net.BroadcastAdmin()
 	end)
 
 	hook.Add("player_connect", TAG, function(data)
