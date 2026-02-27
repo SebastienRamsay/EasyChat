@@ -1,15 +1,17 @@
 local TAG = "EasyChatModuleJoinLeave"
 
-local NET_SPAWN_LEAVE = "EASY_CHAT_MODULE_JOIN_LEAVE"
+local NET_SPAWN_LEAVE = "EASY_CHAT_MODULE_SPAWN_LEAVE"
 local NET_FRIEND_JOIN = "EASY_CHAT_MODULE_JOIN_LEAVE_FRIEND"
+local NET_JOIN = "EASY_CHAT_MODULE_JOIN"
 local EC_JOIN_LEAVE = CreateConVar("easychat_joinleave_msg", "1", { FCVAR_REPLICATED, SERVER and FCVAR_ARCHIVE or nil }, "Enables or disables join/leave messages")
 
 if SERVER then
 	util.AddNetworkString(NET_SPAWN_LEAVE)
 	util.AddNetworkString(NET_FRIEND_JOIN)
+	util.AddNetworkString(NET_JOIN)
 
 	gameevent.Listen("player_connect")
-	gameevent.Listen("player_disconnect")
+	gameevent.Listen("player_disconnect")	
 
 	hook.Add("PlayerInitialSpawn", TAG, function(ply)
 		if not EC_JOIN_LEAVE:GetBool() then return end
@@ -62,7 +64,7 @@ if SERVER then
 		net.WriteString(data.name)
 		net.WriteString(data.reason)
 		net.WriteString(data.networkid)
-		net.BroadcastAdmin()
+		net.Broadcast()
 	end)
 
 	hook.Add("player_connect", TAG, function(data)
@@ -72,6 +74,17 @@ if SERVER then
 		net.WriteString(data.name)
 		net.WriteString(data.networkid)
 		net.Broadcast()
+	end)
+	-- Ramsay
+	hook.Add("player_connect", TAG .. ".Ramsay", function(data)
+		print(TAG .. ".Ramsay")
+		if not EC_JOIN_LEAVE:GetBool() then return end
+
+		net.Start(NET_JOIN)
+		net.WriteString(data.name)
+		net.WriteString(data.networkid)
+		net.Broadcast()
+		print(TAG .. ".Ramsay Sent" )
 	end)
 end
 
@@ -140,6 +153,10 @@ if CLIENT then
 	local EC_PLAYER_PASTEL = GetConVar("easychat_pastel")
 	net.Receive(NET_SPAWN_LEAVE, function()
 		local is_join = net.ReadBool()
+		if not is_join then
+			if not IsValid(LocalPlayer()) or not LocalPlayer().IsAdmin then return end
+			if not LocalPlayer():IsAdmin() then return end
+		end
 		local name = net.ReadString()
 		local reason
 		local team_id = 1
@@ -189,11 +206,6 @@ if CLIENT then
 			else
 				chat.AddText(black_color, " ▸ ", white_color, "Last seen ", cyan_color, seen_date, white_color, " at ", teal_color, os.date("%H:%M", last_seen_time), gray_color, formatted_diff)
 			end
-
-			-- let me be special
-			if network_id == "STEAM_0:0:80006525" then
-				chat.AddText(black_color, " ▸ ", teal_color, "EasyChat", white_color, " Developer!")
-			end
 		else
 			if reason == "Gave up connecting" then
 				chat.AddText(red_color, " ● ", ply_col, name, gray_color, formatted_id, red_color, "gave up", white_color, " connecting")
@@ -211,6 +223,19 @@ if CLIENT then
 		if EasyChat.BlockedPlayers[network_id] then return end -- friends can block each others on steam
 		if EasyChat.IsStringEmpty(name, true) then name = "[NO NAME]" end
 		chat.AddText(green_color, " ● Friend joining ", white_color, name, gray_color, " (" .. network_id .. ")")
+	end)
+
+	net.Receive(NET_JOIN, function()
+		if not LocalPlayer():IsAdmin() then return end
+
+		-- Don't run this if they are our friend
+		local name = net.ReadString()
+		local network_id = net.ReadString()
+		
+		if friend_ids[network_id] then return end
+
+		if EasyChat.IsStringEmpty(name, true) then name = "[NO NAME]" end
+		chat.AddText(green_color, " ● Player joining ", white_color, name, gray_color, " (" .. network_id .. ")")
 	end)
 end
 
