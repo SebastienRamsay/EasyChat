@@ -66,11 +66,12 @@ if SERVER then
 		msgc_native(unpack(print_args))
 	end
 
+	local GM = gmod.GetGamemode()
 	function EasyChat.SendGlobalMessage(ply, str, is_team, is_local, skip_player_say)
 		local msg
 		if not skip_player_say then
 			native = true
-			local result = hook.Run("PlayerSay", ply, str, is_team, is_local)
+			local result = hook.Call("PlayerSay", GM, ply, str, is_team, is_local)
 			native = false
 
 			if result == true then return -- kill the message
